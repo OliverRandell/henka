@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef, useMemo, useState } from 'react'
 import {
-  APIProvider,
   Map,
   AdvancedMarker,
   InfoWindow,
   useMap,
 } from '@vis.gl/react-google-maps'
+import DirectoryMapProvider from './DirectoryMapProvider'
 import { Business } from '@/lib/types'
 import { getCategoryColor } from '@/lib/categories'
 
 type Props = {
   businesses: Business[]
+  onShowList: () => void
   selectedId?: string | null
   hoveredId?: string | null
   onMarkerClick?: (business: Business) => void
@@ -116,6 +117,7 @@ function MapController({
 
 export default function BusinessMap({
   businesses,
+  onShowList,
   selectedId,
   hoveredId,
   onMarkerClick,
@@ -124,21 +126,15 @@ export default function BusinessMap({
   activeRadius,
   activeSuburb,
 }: Props) {
-  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null)
+  const [dismissedId, setDismissedId] = useState<string | null>(null)
+  const selectedBusiness = selectedId === dismissedId
+    ? null
+    : businesses.find(business => business.id === selectedId)
 
-  useEffect(() => {
-    if (selectedId) {
-      const business = businesses.find(b => b.id === selectedId)
-      setSelectedBusiness(business ?? null)
-    } else {
-      setSelectedBusiness(null)
-    }
-  }, [selectedId, businesses])
-
-  const handleMarkerClick = useCallback((business: Business) => {
-    setSelectedBusiness(prev => prev?.id === business.id ? null : business)
+  function handleMarkerClick(business: Business) {
+    setDismissedId(null)
     onMarkerClick?.(business)
-  }, [onMarkerClick])
+  }
 
   const mapped = businesses.filter(b => b.lat && b.lng)
 
@@ -165,12 +161,17 @@ export default function BusinessMap({
   }, [activeSuburb, businesses])
 
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+    <DirectoryMapProvider fallback={
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+        <p role="status">The map is currently unavailable.</p>
+        <button className="min-h-11 font-medium underline" onClick={onShowList}>View businesses as a list</button>
+      </div>
+    }>
       <Map
-        mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID}
+        mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim()}
         defaultCenter={MELBOURNE_CENTER}
         defaultZoom={MELBOURNE_DEFAULT_ZOOM}
-        gestureHandling="greedy"
+        gestureHandling="cooperative"
         style={{ width: '100%', height: '100%' }}
       >
         <MapController
@@ -202,6 +203,7 @@ export default function BusinessMap({
           return (
             <AdvancedMarker
               key={business.id}
+              title={business.name}
               position={{ lat: Number(business.lat), lng: Number(business.lng) }}
               onClick={() => handleMarkerClick(business)}
             >
@@ -231,7 +233,7 @@ export default function BusinessMap({
               lat: Number(selectedBusiness.lat),
               lng: Number(selectedBusiness.lng),
             }}
-            onCloseClick={() => setSelectedBusiness(null)}
+            onCloseClick={() => setDismissedId(selectedBusiness.id)}
             pixelOffset={[0, -8]}
           >
             <div
@@ -265,7 +267,7 @@ export default function BusinessMap({
                       lineHeight: 1.5,
                     }}
                   >
-                    Verified
+                    Owner-managed
                   </span>
                 )}
               </div>
@@ -319,6 +321,6 @@ export default function BusinessMap({
           </InfoWindow>
         )}
       </Map>
-    </APIProvider>
+    </DirectoryMapProvider>
   )
 }
