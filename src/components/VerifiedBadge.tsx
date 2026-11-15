@@ -3,7 +3,7 @@ import { BadgeCheck } from 'lucide-react'
 type VerifiedBadgeProps = {
   /**
    * Visual variant.
-   * - `full` shows the icon + "Verified" label (use on profile pages)
+   * - `full` shows the icon + "Owner-managed" label (use on profile pages)
    * - `compact` shows icon only (use on cards / map pin overlays)
    */
   variant?: 'full' | 'compact'
@@ -13,7 +13,7 @@ type VerifiedBadgeProps = {
 /**
  * Visual marker shown on claimed business listings.
  *
- * Important note on language: "Verified" here means the listing has been
+ * Important note on language: "Owner-managed" here means the listing has been
  * claimed by the business owner and is actively managed by them. It is NOT
  * a verification of sustainability claims — that distinction is made
  * deliberately on the /about page and should be respected wherever this
@@ -40,7 +40,7 @@ export default function VerifiedBadge({
       className={`inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800 ${className}`}
     >
       <BadgeCheck className="h-3.5 w-3.5" />
-      Verified
+      Owner-managed
     </span>
   )
 }

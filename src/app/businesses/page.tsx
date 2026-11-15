@@ -89,7 +89,7 @@ export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [loading, setLoading] = useState(true)
   const [suburbs, setSuburbs] = useState<string[]>([])
-  const [viewMode, setViewMode] = useState<ViewMode>('map')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -138,7 +138,7 @@ export default function BusinessesPage() {
     }
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.trim().toLowerCase()
       results = results.filter(b =>
         b.name.toLowerCase().includes(q) ||
         b.description?.toLowerCase().includes(q) ||
@@ -449,6 +449,7 @@ export default function BusinessesPage() {
 
               <div className="flex-1">
                 <BusinessMap
+                  onShowList={() => setViewMode('list')}
                   businesses={filtered}
                   selectedId={selectedId}
                   hoveredId={hoveredId}
@@ -519,6 +520,7 @@ export default function BusinessesPage() {
           ) : (
             <div className="h-full">
               <BusinessMap
+                  onShowList={() => setViewMode('list')}
                 businesses={filtered}
                 selectedId={selectedId}
                 hoveredId={hoveredId}
@@ -633,7 +635,7 @@ function BusinessCard({
               </span>
               {business.is_verified && (
                 <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
-                  Verified
+                  Owner-managed
                 </span>
               )}
             </div>
