@@ -1,16 +1,5 @@
 import Link from 'next/link'
 
-/**
- * Single source of truth for the site's top navigation.
- *
- * Used on every page. When the rebrand happens, only this file's
- * 'candella' wordmark needs to change \u2014 the rest of the codebase
- * inherits the change automatically.
- *
- * Optional `current` prop hides the matching link to avoid a self-link
- * (e.g. don't show "Browse all" when already on the browse page).
- */
-
 type NavCurrent = 'home' | 'browse' | 'about' | 'other'
 
 type Props = {
@@ -34,9 +23,9 @@ export default function Nav({ current = 'other', variant = 'default' }: Props) {
       <Link
         href="/"
         className="text-lg font-semibold tracking-tight text-stone-900"
-        aria-label="Candella home"
+        aria-label="Henka home"
       >
-        candella
+        henka
       </Link>
       <div className="flex items-center gap-6">
         {current !== 'about' && (
