@@ -4,7 +4,7 @@
 
 @font-face {
   font-family: 'Garet';
-  src: url('/fonts/GaretBold.woff2') format('woff2');
+  src: url('/fonts/garet/GaretT-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -12,7 +12,7 @@
 
 @font-face {
   font-family: 'Garet';
-  src: url('/fonts/GaretBook.woff2') format('woff2');
+  src: url('/fonts/garet/GaretT-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -20,7 +20,47 @@
 
 @font-face {
   font-family: 'Garet';
-  src: url('/fonts/GaretExtraBold.woff2') format('woff2');
+  src: url('/fonts/garet/GaretT-ExtraBold.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GaretT';
+  src: url('/fonts/garet/GaretT-Book.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GaretT';
+  src: url('/fonts/garet/GaretT-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GaretT';
+  src: url('/fonts/garet/GaretT-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GaretT';
+  src: url('/fonts/garet/GaretT-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GaretT';
+  src: url('/fonts/garet/GaretT-ExtraBold.woff2') format('woff2');
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -28,25 +68,40 @@
 
 :root {
   --background: #ffffff;
+  --content-width: 96rem;
+  --article-width: 48rem;
+  --page-gutter: clamp(1.25rem, 4vw, 4rem);
+  --header-gutter: clamp(1rem, 2vw, 2rem);
   --foreground: #171717;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: 'GaretT', Arial, Helvetica, sans-serif;
   --font-mono: ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
+
+body { margin: 0; }
+a, button, select, summary, input[type=checkbox], input[type=radio] { cursor: pointer; }
+input:not([type=checkbox]):not([type=radio]), textarea { cursor: text; }
+button:disabled, select:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #3d482e; outline-offset: 3px; }
+button:not(:disabled):active { filter: brightness(.9); }
+html { overflow-y: auto; }
+body { min-height: 100vh; min-height: 100svh; }
+
+.content-container { width: 100%; max-width: var(--article-width); margin-inline: auto; }
+
+gmp-advanced-marker:focus-visible { outline: 2px solid #3d482e; outline-offset: 3px; }
+
+.henka-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.75rem; padding: .8rem 1.25rem; border: 1px solid #53603d; border-radius: 1.875rem; letter-spacing: .1em; text-transform: uppercase; font-size: .75rem; font-weight: 600; background: #53603d; color: white; }
+.henka-button:hover:not(:disabled) { background: #3d482e; border-color: #3d482e; }
+.henka-button:focus-visible { outline: 2px solid #3d482e; outline-offset: 3px; }

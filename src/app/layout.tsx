@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SiteHeader from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
   title: 'Henka — Sustainable businesses in Melbourne',
@@ -40,7 +41,7 @@ export default function RootLayout({
       lang="en-AU"
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><SiteHeader />{children}</body>
     </html>
   );
 }

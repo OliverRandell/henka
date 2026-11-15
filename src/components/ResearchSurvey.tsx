@@ -2,37 +2,34 @@ import Link from 'next/link'
 import { ResearchArticle } from './ResearchSite'
 import styles from './ResearchSite.module.css'
 
-function getResponderUrl(value: string | undefined) {
-  if (!value) return null
-  try {
-    const url = new URL(value)
-    if (url.origin !== 'https://docs.google.com' || !/^\/forms\/(?:u\/\d+\/)?d\/(?:e\/)?[\w-]+\/viewform\/?$/.test(url.pathname)) return null
-    return new URL(url.pathname, url.origin)
-  } catch {
-    return null
-  }
-}
-
-export default function ResearchSurvey({ title, introduction, buttonLabel, responderUrl }: {
+export default function ResearchSurvey({ title, introduction, purpose, audience, participation, buttonLabel, responderUrl, availabilityNote }: {
   title: string
   introduction: string
+  purpose: string
+  audience: string
+  participation: string
   buttonLabel: string
-  responderUrl?: string
+  responderUrl: string
+  availabilityNote?: string
 }) {
-  const responder = getResponderUrl(responderUrl)
-
   return (
-    <ResearchArticle title={title}>
+    <ResearchArticle title={title} eyebrow="Henka research">
       <p>{introduction}</p>
-      {responder ? (
-        <>
-          <a className={styles.button} href={responder.href}>{buttonLabel}</a>
-          <p>The survey opens in Google Forms.</p>
-        </>
-      ) : (
-        <p>The survey is currently unavailable. <Link href="/contact">Contact Henka</Link> for research enquiries.</p>
-      )}
-      <p>Taking part is voluntary. Google Forms processes responses. If you choose to provide an email for follow-up, it can identify your response. Read how we handle responses in the <Link href="/privacy">privacy notice</Link>.</p>
+      {availabilityNote && <aside className={styles.surveyNotice} aria-label="Survey availability"><p>{availabilityNote}</p></aside>}
+      <div className={styles.surveyActions}>
+        <a className={styles.button} href={responderUrl} target="_blank" rel="noopener noreferrer" aria-describedby="survey-external-note">{buttonLabel}</a>
+        <small id="survey-external-note">You’ll leave Henka to complete the survey in Google Forms. Opens in a new tab.</small>
+      </div>
+      <h2>Why we’re asking</h2>
+      <p>{purpose}</p>
+      <h2>Who we’d like to hear from</h2>
+      <p>{audience}</p>
+      <h2>What taking part involves</h2>
+      <p>{participation}</p>
+      <h2>Your participation and privacy</h2>
+      <p>Taking part is voluntary. Review the form before deciding what to share. Contact details, business details and free-text answers may identify you. Please avoid including sensitive information or identifying details about other people.</p>
+      <p>Google Forms collects responses. Read Henka’s <Link href="/privacy">research privacy notice</Link> for how responses are used and how to ask about access, deletion or withdrawal.</p>
+      <p>Questions before you take part? <Link href="/contact">Contact Henka</Link>.</p>
     </ResearchArticle>
   )
 }

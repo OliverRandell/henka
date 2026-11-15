@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
                 color: '#1c1917',
               }}
             >
-              candella
+              henka.
             </div>
           </div>
         </div>

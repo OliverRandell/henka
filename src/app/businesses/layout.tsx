@@ -1,9 +1,5 @@
-import { Suspense, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
-export default function BusinessesLayout({
-  children,
-}: {
-  children: ReactNode
-}) {
-  return <Suspense fallback={null}>{children}</Suspense>
+export default function BusinessesLayout({ children }: { children: ReactNode }) {
+  return children
 }

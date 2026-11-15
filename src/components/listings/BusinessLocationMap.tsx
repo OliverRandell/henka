@@ -2,6 +2,7 @@
 
 import { Map, AdvancedMarker } from '@vis.gl/react-google-maps'
 import DirectoryMapProvider from './DirectoryMapProvider'
+import { hasMapCoordinates } from '@/lib/directory'
 import { Business } from '@/lib/types'
 import { getCategoryColor } from '@/lib/categories'
 
@@ -19,7 +20,7 @@ type Props = {
  * the page content.
  */
 export default function BusinessLocationMap({ business }: Props) {
-  if (!business.lat || !business.lng) return null
+  if (!hasMapCoordinates(business)) return <p>Map coordinates are unavailable for this listing.</p>
 
   const lat = Number(business.lat)
   const lng = Number(business.lng)

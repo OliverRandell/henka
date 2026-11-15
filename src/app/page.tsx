@@ -17,8 +17,7 @@ export default function HomePage() {
           <h1>Better choices should be easier to make.</h1>
           <p>Henka is exploring how everyday choices and business practices can reduce harm to the environment and animals. We’re starting in Melbourne, by listening to people who shop here and the businesses that serve them.</p>
           <div className={styles.actions}>
-            <Link className={styles.button} href="#research">Take part in the research</Link>
-            <Link className={styles.textLink} href="/businesses">Browse the directory</Link>
+            <Link className={styles.button} href="/businesses">Browse the directory</Link>
           </div>
         </div>
         <Image src="/hero-photo.jpg" alt="" width={4928} height={3280} sizes="(max-width: 760px) 95vw, 43vw" preload />
@@ -28,14 +27,14 @@ export default function HomePage() {
         <h2>Tell us what happens in practice.</h2>
         <p>We’re interested in recent experiences: what you did, what got in the way and what worked. Your answers will help us decide which problems are worth investigating further.</p>
         <div className={styles.researchLinks}>
-          <Link href="/survey">Share your experience as a shopper <span aria-hidden="true">↗</span></Link>
-          <Link href="/business">Share your experience running a business <span aria-hidden="true">↗</span></Link>
+          <Link href="/survey">Take the consumer research survey <span aria-hidden="true">↗</span></Link>
+          <Link href="/business">Take the business research survey <span aria-hidden="true">↗</span></Link>
         </div>
       </section>
 
       <section className={styles.section}>
         <h2>Who’s behind Henka?</h2>
-        <p>I’m Oliver Randell, a Melbourne-based product lead with a background in design and development. I started Henka to understand where better tools could make a practical difference for people and businesses.</p>
+        <p>We’re exploring where better tools could make a practical difference for people and businesses. Henka was started by Oliver Randell, a Melbourne-based product lead with a background in design and development.</p>
         <p><Link className={styles.textLink} href="/about">Read about Henka and our approach</Link></p>
       </section>
 

@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useMemo, useState } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import {
   Map,
   AdvancedMarker,
+  AdvancedMarkerAnchorPoint,
   InfoWindow,
   useMap,
 } from '@vis.gl/react-google-maps'
 import DirectoryMapProvider from './DirectoryMapProvider'
+import { hasMapCoordinates } from '@/lib/directory'
 import { Business } from '@/lib/types'
 import { getCategoryColor } from '@/lib/categories'
 
@@ -18,6 +20,7 @@ type Props = {
   hoveredId?: string | null
   onMarkerClick?: (business: Business) => void
   onMarkerHover?: (id: string | null) => void
+  onClearSelection: () => void
   // Invariant enforced by the parent: `userLocation` and `activeSuburb`
   // are NEVER both truthy at the same time. The parent passes one or the other.
   userLocation?: { lat: number; lng: number } | null
@@ -47,15 +50,19 @@ function MapController({
   suburbBounds,
   userLocation,
   activeRadius,
+  selectedPosition,
 }: {
   activeSuburb?: string | null
   suburbCenter?: { lat: number; lng: number } | null
   suburbBounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null
   userLocation?: { lat: number; lng: number } | null
   activeRadius?: number
+  selectedPosition?: { lat: number; lng: number }
 }) {
   const map = useMap()
   const circleRef = useRef<google.maps.Circle | null>(null)
+
+
 
   // Reset map to Melbourne when all location filters clear.
   // This catches the case where the user clicks "Clear all" or disables Near Me.
@@ -112,6 +119,10 @@ function MapController({
     }
   }, [map, userLocation, activeRadius])
 
+  useEffect(() => {
+    if (map && selectedPosition) map.panTo(selectedPosition)
+  }, [map, selectedPosition])
+
   return null
 }
 
@@ -122,26 +133,27 @@ export default function BusinessMap({
   hoveredId,
   onMarkerClick,
   onMarkerHover,
+  onClearSelection,
   userLocation,
   activeRadius,
   activeSuburb,
 }: Props) {
-  const [dismissedId, setDismissedId] = useState<string | null>(null)
-  const selectedBusiness = selectedId === dismissedId
-    ? null
-    : businesses.find(business => business.id === selectedId)
+  const selectedBusiness = businesses.find(business => business.id === selectedId)
 
   function handleMarkerClick(business: Business) {
-    setDismissedId(null)
     onMarkerClick?.(business)
   }
 
-  const mapped = businesses.filter(b => b.lat && b.lng)
+  const selectedPosition = useMemo(() => {
+    const business = businesses.find(b => b.id === selectedId)
+    return business && hasMapCoordinates(business) ? { lat: Number(business.lat), lng: Number(business.lng) } : undefined
+  }, [businesses, selectedId])
+  const mapped = businesses.filter(hasMapCoordinates)
 
   const suburbData = useMemo(() => {
     if (!activeSuburb) return null
     const suburbBusinesses = businesses.filter(
-      b => b.suburb === activeSuburb && b.lat && b.lng
+      b => b.suburb === activeSuburb && hasMapCoordinates(b)
     )
     if (suburbBusinesses.length === 0) return null
 
@@ -163,10 +175,11 @@ export default function BusinessMap({
   return (
     <DirectoryMapProvider fallback={
       <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
-        <p role="status">The map is currently unavailable.</p>
+
         <button className="min-h-11 font-medium underline" onClick={onShowList}>View businesses as a list</button>
       </div>
     }>
+      {mapped.length !== businesses.length && <p role="status" className="bg-white p-3 text-sm text-stone-700">{businesses.length - mapped.length} listings have no valid map coordinates and remain in the list.</p>}
       <Map
         mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim()}
         defaultCenter={MELBOURNE_CENTER}
@@ -175,6 +188,7 @@ export default function BusinessMap({
         style={{ width: '100%', height: '100%' }}
       >
         <MapController
+          selectedPosition={selectedPosition}
           activeSuburb={activeSuburb}
           suburbCenter={suburbData?.center ?? null}
           suburbBounds={suburbData?.bounds ?? null}
@@ -204,6 +218,8 @@ export default function BusinessMap({
             <AdvancedMarker
               key={business.id}
               title={business.name}
+              anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
+              style={{ width: 44, height: 44, display: 'grid', placeItems: 'center' }}
               position={{ lat: Number(business.lat), lng: Number(business.lng) }}
               onClick={() => handleMarkerClick(business)}
             >
@@ -227,13 +243,13 @@ export default function BusinessMap({
           )
         })}
 
-        {selectedBusiness && selectedBusiness.lat && selectedBusiness.lng && (
+        {selectedBusiness && hasMapCoordinates(selectedBusiness) && (
           <InfoWindow
             position={{
               lat: Number(selectedBusiness.lat),
               lng: Number(selectedBusiness.lng),
             }}
-            onCloseClick={() => setDismissedId(selectedBusiness.id)}
+            onCloseClick={onClearSelection}
             pixelOffset={[0, -8]}
           >
             <div
@@ -275,14 +291,14 @@ export default function BusinessMap({
               <p
                 style={{
                   fontSize: '11px',
-                  color: '#a8a29e',
+                  color: '#57534e',
                   margin: '0 0 8px',
                   textTransform: 'none',
                   letterSpacing: '0',
                   lineHeight: 1.4,
                 }}
               >
-                {selectedBusiness.suburb} \u00b7 {selectedBusiness.category}
+                {selectedBusiness.suburb} · {selectedBusiness.category}
               </p>
 
               {selectedBusiness.description && (
@@ -315,7 +331,7 @@ export default function BusinessMap({
                 }}
               >
                 View listing
-                <span style={{ fontSize: '14px' }}>\u2192</span>
+                <span style={{ fontSize: '14px' }}>→</span>
               </a>
             </div>
           </InfoWindow>

@@ -136,17 +136,8 @@ export default function SubmitBusinessPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white">
-      <nav className="border-b border-stone-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="text-lg font-bold tracking-tight text-stone-900"
-          style={{ letterSpacing: '-0.092em', fontFamily: '"Garet", "Quicksand", sans-serif' }}>
-          henka.
-        </Link>
-        <div className="flex items-center gap-6">
-          <Link href="/about" className="text-sm text-stone-500 hover:text-stone-900 transition-colors">About</Link>
-          <Link href="/businesses" className="text-sm text-stone-500 hover:text-stone-900 transition-colors">Browse all</Link>
-        </div>
-      </nav>
+    <main id="content" className="min-h-screen bg-white">
+
 
       <div className="max-w-2xl mx-auto px-6 py-12 md:py-16">
         {state.kind === 'success' ? (

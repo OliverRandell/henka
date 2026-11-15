@@ -1,10 +1,8 @@
 import Link from 'next/link'
-import Nav from '@/components/Nav'
 
 export default function NotFound() {
   return (
-    <main className="min-h-screen bg-white">
-      <Nav current="other" />
+    <main id="content" className="min-h-screen bg-white">
       <div className="max-w-2xl mx-auto px-6 py-32 text-center">
         <p className="text-xs font-medium tracking-widest text-stone-400 uppercase mb-6">
           404

@@ -109,27 +109,9 @@ const faqs = [
 
 export default function ForBusinessesPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <main id="content" className="min-h-screen bg-white">
       {/* Nav */}
-      <nav className="border-b border-stone-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
-          candella
-        </Link>
-        <div className="flex items-center gap-6">
-          <Link
-            href="/about"
-            className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
-          >
-            About
-          </Link>
-          <Link
-            href="/businesses"
-            className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
-          >
-            Browse all
-          </Link>
-        </div>
-      </nav>
+
 
       <div className="mx-auto max-w-5xl px-6 py-12 md:py-20">
         {/* Hero */}

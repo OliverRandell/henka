@@ -30,9 +30,9 @@ export async function generateMetadata({ params }: Props) {
 
   if (!business) return {}
 
-  const title = `${business.name} \u2014 Candella`
+  const title = `${business.name} — Henka`
   const description = business.description?.slice(0, 155) ??
-    `${business.name} is a sustainable ${business.category.toLowerCase()} business in ${business.suburb}, Melbourne.`
+    `${business.name} is a ${business.category.toLowerCase()} business in ${business.suburb}, Melbourne.`
   const url = `${process.env.NEXT_PUBLIC_SITE_URL}/businesses/${slug}`
   const color = getCategoryColor(business.category)
 
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: Props) {
       title,
       description,
       url,
-      siteName: 'Candella',
+      siteName: 'Henka',
       locale: 'en_AU',
       type: 'website',
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
@@ -69,9 +69,10 @@ export default async function BusinessPage({ params, searchParams }: Props) {
     .select('*')
     .eq('slug', slug)
     .eq('status', 'approved')
-    .single<Business>()
+    .maybeSingle<Business>()
 
-  if (!business || error) notFound()
+  if (error) throw new Error('Unable to load this business. Please try again.')
+  if (!business) notFound()
 
   const website = getPublicUrl(business.website_url)
   const instagram = getPublicUrl(business.instagram_url)
@@ -94,23 +95,13 @@ export default async function BusinessPage({ params, searchParams }: Props) {
   )
 
   return (
-    <main className="min-h-screen bg-white">
+    <main id="content" className="min-h-screen bg-white">
 
       {/* Nav */}
-      <nav className="border-b border-stone-100 px-6 py-4 flex items-center gap-3">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
-          candella
-        </Link>
-        <span className="text-stone-300">/</span>
-        <Link href="/businesses" className="text-sm text-stone-400 hover:text-stone-700 transition-colors">
-          Browse
-        </Link>
-        <span className="text-stone-300">/</span>
-        <span className="text-sm text-stone-500 truncate">{business.name}</span>
-      </nav>
+
 
       {/* Hero photo / placeholder */}
-      <div className="max-w-3xl mx-auto px-0 sm:px-6 pt-0 sm:pt-8">
+      <div className="content-container px-0 sm:px-6 pt-0 sm:pt-8">
         <div
           className="w-full aspect-[16/9] sm:rounded-xl overflow-hidden flex items-center justify-center"
           style={{ background: gradient }}
@@ -123,7 +114,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-10">
+      <div className="content-container px-6 py-10">
 
         {/* Outreach banner — only when ?ref= is present and listing is unclaimed */}
         {showUnclaimedBanner && (
@@ -153,7 +144,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
                 {business.is_verified && <VerifiedBadge />}
               </div>
               <p className="text-stone-400 text-sm mt-1">
-                {business.suburb} \u00b7 {business.category}
+                {business.suburb} · {business.category}
               </p>
             </div>
           </div>
@@ -168,10 +159,10 @@ export default async function BusinessPage({ params, searchParams }: Props) {
           </section>
         )}
 
-        {/* What makes this place sustainable */}
+        {/* Reported practices */}
         <section className="mb-10">
           <h2 className="text-xs font-medium tracking-widest text-stone-400 uppercase mb-4">
-            What makes this place sustainable
+            Reported practices
           </h2>
           {hasCredentials ? (
             <div className="flex flex-wrap gap-2">
@@ -189,7 +180,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
               <p className="text-sm text-stone-500">
                 {isClaimed ? (
                   <>
-                    Sustainability credentials are being added. Read about{' '}
+                    Reported practices are being added. Read about{' '}
                     <Link href="/about" className="text-emerald-700 hover:underline font-medium">
                       Henka’s directory criteria
                     </Link>
@@ -197,7 +188,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
                   </>
                 ) : (
                   <>
-                    Sustainability credentials haven’t been added yet.{' '}
+                    Reported practices haven’t been added yet.{' '}
                     <Link
                       href={`/claim?business=${business.slug}`}
                       className="text-emerald-700 hover:underline font-medium"
@@ -232,7 +223,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
                     rel="noopener noreferrer"
                     className="text-xs text-emerald-700 hover:underline mt-1 inline-block"
                   >
-                    Get directions \u2192
+                    Get directions →
                   </a>
                 )}
               </InfoRow>
@@ -285,7 +276,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
                   href={`/suburb/${business.suburb.toLowerCase().replace(/\s+/g, '-')}`}
                   className="text-sm text-emerald-700 hover:underline"
                 >
-                  More sustainable businesses in {business.suburb} \u2192
+                  More sustainable businesses in {business.suburb} →
                 </Link>
               </InfoRow>
             )}
@@ -323,7 +314,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
               Is this your business?
             </p>
             <p className="text-xs text-stone-500 mb-4 max-w-sm mx-auto leading-relaxed">
-              Claim this listing to add photos, opening hours, your sustainability credentials, and the verified badge.
+              Claim this listing to add photos, opening hours, your reported practices, and owner-managed status.
             </p>
             <Link
               href={`/claim?business=${business.slug}`}
@@ -348,7 +339,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="px-4 py-3 flex items-start gap-3">
-      <span className="text-stone-300 text-sm mt-0.5 flex-shrink-0">\u2192</span>
+      <span className="text-stone-300 text-sm mt-0.5 flex-shrink-0">→</span>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-stone-400 mb-0.5">{label}</p>
         {children}
@@ -386,7 +377,7 @@ function RelatedBusinessRow({ business }: { business: Business }) {
           {business.category}
         </p>
       </div>
-      <span className="text-stone-300 group-hover:text-emerald-500 transition-colors flex-shrink-0">\u2192</span>
+      <span className="text-stone-300 group-hover:text-emerald-500 transition-colors flex-shrink-0">→</span>
     </Link>
   )
 }

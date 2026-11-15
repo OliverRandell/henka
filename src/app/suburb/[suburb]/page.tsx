@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props) {
   const { suburb } = await params
   const name = suburb.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   return {
-    title: `Sustainable businesses in ${name} — Candella`,
+    title: `Sustainable businesses in ${name} — Henka`,
     description: `Discover sustainable, ethical and planet-friendly businesses in ${name}, Melbourne.`,
   }
 }
@@ -32,18 +32,8 @@ export default async function SuburbPage({ params }: Props) {
   if (!businesses) notFound()
 
   return (
-    <main className="min-h-screen bg-white">
-      <nav className="border-b border-stone-100 px-6 py-4 flex items-center gap-3">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-stone-900">
-          candella
-        </Link>
-        <span className="text-stone-300">/</span>
-        <Link href="/businesses" className="text-sm text-stone-400 hover:text-stone-700 transition-colors">
-          Browse
-        </Link>
-        <span className="text-stone-300">/</span>
-        <span className="text-sm text-stone-500">{suburbName}</span>
-      </nav>
+    <main id="content" className="min-h-screen bg-white">
+
 
       <div className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-semibold text-stone-900 mb-2">

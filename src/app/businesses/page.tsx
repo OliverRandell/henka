@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -10,7 +10,9 @@ import { Business } from '@/lib/types'
 import { getCategoryIconPath } from '@/lib/categories'
 import { formatTagList } from '@/lib/tags'
 import { CRITERIA_NAMES } from '@/lib/criteria'
-import Nav from '@/components/Nav'
+import { RADIUS_OPTIONS, DEFAULT_RADIUS, parseLocationFilter, filterBusinesses } from '@/lib/directory'
+import styles from './Directory.module.css'
+import CriteriaDrawer from '@/components/CriteriaDrawer'
 
 
 const BusinessMap = dynamic(() => import('@/components/listings/BusinessMap'), {
@@ -32,68 +34,28 @@ const CATEGORIES = [
   'Markets',
 ]
 
-const RADIUS_OPTIONS = [
-  { label: '2 km', value: 2 },
-  { label: '5 km', value: 5 },
-  { label: '10 km', value: 10 },
-  { label: '20 km', value: 20 },
-  { label: '50 km', value: 50 },
-]
-
-const DEFAULT_RADIUS = 5
-
 type ViewMode = 'map' | 'list'
 
-type LocationFilter =
-  | { mode: 'none' }
-  | { mode: 'suburb'; suburb: string }
-  | { mode: 'nearMe'; lat: number; lng: number; radius: number }
-
-function getDistanceKm(
-  lat1: number, lng1: number,
-  lat2: number, lng2: number
-): number {
-  const R = 6371
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLng = ((lng2 - lng1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2)
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-function parseLocationFilter(params: URLSearchParams): LocationFilter {
-  const suburb = params.get('suburb')
-  if (suburb && suburb !== 'All') {
-    return { mode: 'suburb', suburb }
-  }
-  const lat = params.get('lat')
-  const lng = params.get('lng')
-  if (lat && lng) {
-    const latNum = Number(lat)
-    const lngNum = Number(lng)
-    if (!Number.isNaN(latNum) && !Number.isNaN(lngNum)) {
-      const radius = Number(params.get('radius')) || DEFAULT_RADIUS
-      return { mode: 'nearMe', lat: latNum, lng: lngNum, radius }
-    }
-  }
-  return { mode: 'none' }
-}
-
 export default function BusinessesPage() {
-  const router = useRouter()
+  return <Suspense fallback={<p role="status" className="p-6">Loading directory…</p>}><Directory /></Suspense>
+}
+
+function Directory() {
   const searchParams = useSearchParams()
 
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const [locationError, setLocationError] = useState('')
   const [suburbs, setSuburbs] = useState<string[]>([])
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const viewMode: ViewMode = searchParams.get('view') === 'list' ? 'list' : 'map'
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const closeFilters = useCallback(() => setFiltersOpen(false), [])
   const [locationLoading, setLocationLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const criteriaTriggerRef = useRef<HTMLButtonElement>(null)
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const activeCategory = searchParams.get('category') ?? 'All'
@@ -109,61 +71,35 @@ export default function BusinessesPage() {
   )
 
   useEffect(() => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
+    let active = true
     async function fetchBusinesses() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('businesses')
-        .select('*')
-        .eq('status', 'approved')
-        .order('is_featured', { ascending: false })
-        .order('name')
-
-      if (data) {
-        setBusinesses(data)
-        const uniqueSuburbs = Array.from(
-          new Set(data.map((b: Business) => b.suburb).filter(Boolean))
-        ).sort() as string[]
-        setSuburbs(uniqueSuburbs)
+      setLoading(true)
+      setError(false)
+      try {
+        const supabase = createClient()
+        const { data, error } = await supabase.from('businesses').select('*')
+          .eq('status', 'approved').order('is_featured', { ascending: false })
+          .order('name').abortSignal(controller.signal)
+        if (error || !data) throw new Error('Listings request failed')
+        if (active) {
+          setBusinesses(data)
+          setSuburbs(Array.from(new Set(data.map((b: Business) => b.suburb).filter(Boolean))).sort() as string[])
+        }
+      } catch {
+        if (active) setError(true)
+      } finally {
+        clearTimeout(timeout)
+        if (active) setLoading(false)
       }
-      setLoading(false)
     }
-    fetchBusinesses()
-  }, [])
+    void fetchBusinesses()
+    return () => { active = false; clearTimeout(timeout); controller.abort() }
+  }, [retry])
 
-  const filtered = useMemo(() => {
-    let results = businesses
-
-    if (activeCategory !== 'All') {
-      results = results.filter(b => b.category === activeCategory)
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
-      results = results.filter(b =>
-        b.name.toLowerCase().includes(q) ||
-        b.description?.toLowerCase().includes(q) ||
-        b.suburb?.toLowerCase().includes(q)
-      )
-    }
-
-    if (locationFilter.mode === 'suburb') {
-      results = results.filter(b => b.suburb === locationFilter.suburb)
-    } else if (locationFilter.mode === 'nearMe') {
-      const { lat, lng, radius } = locationFilter
-      results = results.filter(b => {
-        if (!b.lat || !b.lng) return false
-        return getDistanceKm(lat, lng, Number(b.lat), Number(b.lng)) <= radius
-      })
-    }
-
-    if (activeCriteria.length > 0) {
-      results = results.filter(b =>
-        activeCriteria.every(c => b.criteria?.includes(c))
-      )
-    }
-
-    return results
-  }, [businesses, activeCategory, searchQuery, locationFilter, activeCriteria])
+  const filtered = useMemo(() => filterBusinesses(businesses, activeCategory, searchQuery, locationFilter, activeCriteria),
+    [businesses, activeCategory, searchQuery, locationFilter, activeCriteria])
 
   const navigate = useCallback((updates: Record<string, string | null>) => {
     const current = typeof window !== 'undefined'
@@ -179,8 +115,10 @@ export default function BusinessesPage() {
     })
 
     const query = current.toString()
-    router.push(query ? `/businesses?${query}` : '/businesses', { scroll: false })
-  }, [router, searchParams])
+    window.history.pushState(null, '', query ? `/businesses?${query}` : '/businesses')
+  }, [searchParams])
+
+  const setViewMode = (view: ViewMode) => navigate({ view: view === 'list' ? 'list' : null })
 
   const selectSuburb = useCallback((suburb: string) => {
     navigate({
@@ -192,6 +130,11 @@ export default function BusinessesPage() {
   }, [navigate])
 
   const enableNearMe = useCallback(() => {
+    setLocationError('')
+    if (!navigator.geolocation) {
+      setLocationError('Location is unavailable in this browser. Choose a suburb instead.')
+      return
+    }
     setLocationLoading(true)
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -205,8 +148,9 @@ export default function BusinessesPage() {
       },
       () => {
         setLocationLoading(false)
-        alert('Unable to get your location. Please check your browser settings.')
-      }
+        setLocationError('Unable to get your location. Check browser permissions or choose a suburb.')
+      },
+      { timeout: 10000, maximumAge: 60000 }
     )
   }, [navigate])
 
@@ -234,12 +178,12 @@ export default function BusinessesPage() {
   }, [activeCriteria, navigate])
 
   const clearAllFilters = useCallback(() => {
-    router.push('/businesses', { scroll: false })
-  }, [router])
+    navigate({ q: null, category: null, criteria: null, suburb: null, lat: null, lng: null, radius: null })
+  }, [navigate])
 
   function handleMarkerClick(business: Business) {
     setSelectedId(business.id)
-    cardRefs.current[business.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    cardRefs.current[business.id]?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'nearest' })
   }
 
   const hasActiveFilters =
@@ -248,33 +192,39 @@ export default function BusinessesPage() {
     searchQuery !== '' ||
     activeCriteria.length > 0
 
-  const mapUserLocation = locationFilter.mode === 'nearMe'
+  const mapUserLocation = useMemo(() => locationFilter.mode === 'nearMe'
     ? { lat: locationFilter.lat, lng: locationFilter.lng }
-    : null
+    : null, [locationFilter])
   const mapRadius = locationFilter.mode === 'nearMe' ? locationFilter.radius : 0
   const mapSuburb = locationFilter.mode === 'suburb' ? locationFilter.suburb : null
 
   const suburbSelectValue = locationFilter.mode === 'suburb' ? locationFilter.suburb : 'All'
 
   return (
-    <main className="h-screen flex flex-col bg-white overflow-hidden">
+    <div data-directory data-view={viewMode} className={styles.directory}>
 
-      <Nav current="browse" />
+      <main id="content">
+      <h1 className="sr-only">Melbourne business directory</h1>
 
-      <div className="border-b border-stone-100 px-6 py-4 flex-shrink-0">
-        <div className="flex flex-wrap gap-3 items-center">
+      <div className={styles.controls}>
+        <div className={styles.filterGrid}>
 
-          <div className="relative flex-1 min-w-[180px]">
+          <div className={styles.search}>
+            <label htmlFor="directory-search">Search the directory</label>
             <input
-              type="text"
+              id="directory-search"
+              type="search"
+              aria-label="Search businesses"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search businesses..."
+              placeholder="Try a business name, suburb or keyword"
               className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-300 focus:outline-none focus:border-emerald-400 transition-colors"
             />
           </div>
 
+          <label className={styles.filterGroup}>Category
           <select
+            aria-label="Business category"
             value={activeCategory}
             onChange={e => setCategory(e.target.value)}
             className="border border-stone-200 rounded-xl px-4 py-2.5 text-sm text-stone-600 focus:outline-none focus:border-emerald-400 transition-colors bg-white"
@@ -283,7 +233,9 @@ export default function BusinessesPage() {
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
+          </label>
 
+          <fieldset className={styles.location}><legend>Location</legend>
           <div className="flex items-center gap-2 border border-stone-200 rounded-xl p-1 bg-white">
             <button
               type="button"
@@ -347,16 +299,23 @@ export default function BusinessesPage() {
             </select>
           )}
 
+          </fieldset>
+          <div className={styles.filterGroup}><span>Criteria</span>
           <button
-            onClick={() => setFiltersOpen(true)}
-            className={`flex items-center gap-1.5 border rounded-xl px-4 py-2.5 text-sm transition-colors ${
+            ref={criteriaTriggerRef}
+            aria-label={`Criteria, ${activeCriteria.length} selected`}
+            aria-expanded={filtersOpen}
+            aria-haspopup="dialog"
+            aria-controls="criteria-filters"
+            onClick={() => setFiltersOpen(open => !open)}
+            className={`henka-button flex items-center gap-1.5 border px-4 py-2.5 transition-colors ${
               activeCriteria.length > 0
                 ? 'border-emerald-400 text-emerald-700 bg-emerald-50'
                 : 'border-stone-200 text-stone-600 hover:border-stone-400'
             }`}
           >
             <span style={{ fontSize: '14px' }}>⊞</span>
-            Filters
+            Criteria
             {activeCriteria.length > 0 && (
               <span className="bg-emerald-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 {activeCriteria.length}
@@ -364,6 +323,7 @@ export default function BusinessesPage() {
             )}
           </button>
 
+          </div>
           {hasActiveFilters && (
             <button
               onClick={clearAllFilters}
@@ -374,12 +334,13 @@ export default function BusinessesPage() {
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-3">
-          <p className="text-stone-400 text-sm">
-            {loading ? 'Loading...' : `${filtered.length} listing${filtered.length !== 1 ? 's' : ''} found`}
+        <div className={styles.resultsBar}>
+          <p role="status" className={viewMode === 'map' && !loading && !error && filtered.length > 0 ? 'sr-only' : 'text-stone-600 text-sm'}>
+            {error ? 'Listings unavailable' : loading ? 'Loading...' : `Showing ${filtered.length} of ${businesses.length} businesses`}
           </p>
-          <div className="flex border border-stone-200 rounded-lg overflow-hidden">
+          <div className={styles.viewToggle}>
             <button
+              aria-pressed={viewMode === 'map'}
               onClick={() => setViewMode('map')}
               className={`px-4 py-1.5 text-sm transition-colors ${
                 viewMode === 'map'
@@ -390,6 +351,7 @@ export default function BusinessesPage() {
               Map
             </button>
             <button
+              aria-pressed={viewMode === 'list'}
               onClick={() => setViewMode('list')}
               className={`px-4 py-1.5 text-sm transition-colors ${
                 viewMode === 'list'
@@ -403,195 +365,50 @@ export default function BusinessesPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex">
+      {locationError && <p role="alert" className={styles.message}>{locationError}</p>}
+      {filtersOpen && <CriteriaDrawer onClose={closeFilters} returnFocusRef={criteriaTriggerRef}>
+        <fieldset id="criteria-filters" className={styles.criteria}>
+          <legend className="sr-only">Business criteria</legend>
+          <p>Match every selected criterion. Practices are reported by businesses and are not independent certifications.</p>
+          <div>{CRITERIA_NAMES.map(criterion => <label key={criterion}>
+            <input type="checkbox" checked={activeCriteria.includes(criterion)} onChange={() => toggleCriteria(criterion)} />
+            {criterion}
+          </label>)}</div>
+          <button type="button" className="henka-button" disabled={activeCriteria.length === 0} onClick={() => navigate({ criteria: null })}>Clear criteria</button>
+        </fieldset>
+      </CriteriaDrawer>}
 
-        <div className="hidden lg:flex w-full h-full">
-          {viewMode === 'map' ? (
-            <>
-              <div className="w-[420px] flex-shrink-0 overflow-y-auto border-r border-stone-100 px-6 py-4">
-                {loading ? (
-                  <div className="space-y-4">
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className="py-4 border-b border-stone-100">
-                        <div className="h-4 bg-stone-100 rounded w-1/2 mb-2 animate-pulse" />
-                        <div className="h-3 bg-stone-100 rounded w-1/3 mb-3 animate-pulse" />
-                        <div className="h-3 bg-stone-100 rounded w-3/4 animate-pulse" />
-                      </div>
-                    ))}
-                  </div>
-                ) : filtered.length === 0 ? (
-                  <div className="text-center py-20">
-                    <p className="text-stone-400 text-sm mb-3">No businesses match your filters.</p>
-                    <button
-                      onClick={clearAllFilters}
-                      className="text-sm text-emerald-600 hover:underline"
-                    >
-                      Clear filters
-                    </button>
-                  </div>
-                ) : (
-                  filtered.map((business: Business) => (
-                    <div
-                      key={business.id}
-                      ref={el => { cardRefs.current[business.id] = el }}
-                      onMouseEnter={() => setHoveredId(business.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                    >
-                      <BusinessCard
-                        business={business}
-                        isSelected={selectedId === business.id}
-                        onClick={() => setSelectedId(business.id)}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="flex-1">
-                <BusinessMap
-                  onShowList={() => setViewMode('list')}
-                  businesses={filtered}
-                  selectedId={selectedId}
-                  hoveredId={hoveredId}
-                  onMarkerClick={handleMarkerClick}
-                  onMarkerHover={(id) => setHoveredId(id)}
-                  userLocation={mapUserLocation}
-                  activeRadius={mapRadius}
-                  activeSuburb={mapSuburb}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="w-full overflow-y-auto px-6 py-4 max-w-3xl mx-auto">
-              {loading ? (
-                <div className="space-y-4">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="py-4 border-b border-stone-100">
-                      <div className="h-4 bg-stone-100 rounded w-1/2 mb-2 animate-pulse" />
-                      <div className="h-3 bg-stone-100 rounded w-1/3 animate-pulse" />
-                    </div>
-                  ))}
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="text-center py-20">
-                  <p className="text-stone-400 text-sm">No businesses match your filters.</p>
-                </div>
-              ) : (
-                filtered.map((business: Business) => (
-                  <BusinessCard
-                    key={business.id}
-                    business={business}
-                    isSelected={selectedId === business.id}
-                    onClick={() => setSelectedId(business.id)}
-                  />
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="lg:hidden w-full h-full">
-          {viewMode === 'list' ? (
-            <div className="overflow-y-auto h-full px-6 py-4">
-              {loading ? (
-                <div className="space-y-4">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="py-4 border-b border-stone-100">
-                      <div className="h-4 bg-stone-100 rounded w-1/2 mb-2 animate-pulse" />
-                      <div className="h-3 bg-stone-100 rounded w-1/3 animate-pulse" />
-                    </div>
-                  ))}
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="text-center py-20">
-                  <p className="text-stone-400 text-sm">No businesses match your filters.</p>
-                </div>
-              ) : (
-                filtered.map((business: Business) => (
-                  <BusinessCard
-                    key={business.id}
-                    business={business}
-                    isSelected={selectedId === business.id}
-                    onClick={() => setSelectedId(business.id)}
-                  />
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="h-full">
-              <BusinessMap
-                  onShowList={() => setViewMode('list')}
-                businesses={filtered}
-                selectedId={selectedId}
-                hoveredId={hoveredId}
-                onMarkerClick={handleMarkerClick}
-                onMarkerHover={(id) => setHoveredId(id)}
-                userLocation={mapUserLocation}
-                activeRadius={mapRadius}
-                activeSuburb={mapSuburb}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {filtersOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          <div
-            className="flex-1 bg-black/20"
-            onClick={() => setFiltersOpen(false)}
-          />
-          <div className="w-80 bg-white h-full overflow-y-auto shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
-              <h2 className="text-sm font-medium text-stone-900">Filters</h2>
-              <button
-                onClick={() => setFiltersOpen(false)}
-                className="text-sm text-stone-400 hover:text-stone-700"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="px-6 py-4">
-              <h3 className="text-xs font-medium tracking-widest text-stone-400 uppercase mb-4">
-                Sustainability criteria
-              </h3>
-              <div className="space-y-2">
-                {CRITERIA_NAMES.map(criterion => (
-                  <label
-                    key={criterion}
-                    className="flex items-center gap-3 cursor-pointer group"
-                  >
-                    <div
-                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                        activeCriteria.includes(criterion)
-                          ? 'bg-emerald-600 border-emerald-600'
-                          : 'border-stone-300 group-hover:border-emerald-400'
-                      }`}
-                      onClick={() => toggleCriteria(criterion)}
-                    >
-                      {activeCriteria.includes(criterion) && (
-                        <span className="text-white text-xs">✓</span>
-                      )}
-                    </div>
-                    <span className="text-sm text-stone-700">{criterion}</span>
-                  </label>
-                ))}
-              </div>
-
-              {activeCriteria.length > 0 && (
-                <button
-                  onClick={() => navigate({ criteria: null })}
-                  className="mt-6 text-xs text-stone-400 hover:text-stone-700 underline"
-                >
-                  Clear criteria filters
-                </button>
-              )}
-            </div>
+      <section className={styles.results} aria-label="Business listings" aria-busy={loading}>
+        {loading ? <p role="status" className={styles.message}>Loading businesses…</p>
+          : error ? <div role="alert" className={styles.message}>
+            <h2>We couldn’t load the directory.</h2>
+            <p>Please check your connection and try again. Your filters have been kept.</p>
+            <button onClick={() => setRetry(value => value + 1)}>Try again</button>
           </div>
-        </div>
-      )}
-    </main>
+          : filtered.length === 0 ? <div className={styles.message}>
+            <h2>{businesses.length === 0 ? 'No approved listings are currently available.' : 'No businesses match your filters.'}</h2>
+            {hasActiveFilters && <button onClick={clearAllFilters}>Clear filters</button>}
+          </div>
+          : <div className={viewMode === 'map' ? styles.mapLayout : styles.listLayout}>
+            <div className={viewMode === 'map' ? styles.mapCards : undefined} aria-label="Results" tabIndex={0}>
+              {filtered.map(business => <div key={business.id}
+                ref={el => { cardRefs.current[business.id] = el }}
+                onMouseEnter={() => setHoveredId(business.id)} onMouseLeave={() => setHoveredId(null)}>
+                <BusinessCard business={business} isSelected={selectedId === business.id} onClick={() => setSelectedId(business.id)} showMapAction={viewMode === 'map'} />
+              </div>)}
+            </div>
+            {viewMode === 'map' && <div className={styles.map}>
+              <div className={styles.mapCounter} aria-hidden="true">Showing {filtered.length} of {businesses.length} businesses</div>
+              <span className="sr-only">The count includes all filtered matches out of all loaded approved businesses. Map zoom does not change this count.</span>
+              <BusinessMap onShowList={() => setViewMode('list')} businesses={filtered}
+                selectedId={selectedId} hoveredId={hoveredId} onMarkerClick={handleMarkerClick} onClearSelection={() => setSelectedId(null)}
+                onMarkerHover={setHoveredId} userLocation={mapUserLocation}
+                activeRadius={mapRadius} activeSuburb={mapSuburb} />
+            </div>}
+          </div>}
+      </section>
+      </main>
+    </div>
   )
 }
 
@@ -599,21 +416,22 @@ function BusinessCard({
   business,
   isSelected,
   onClick,
+  showMapAction,
 }: {
   business: Business
   isSelected: boolean
   onClick: () => void
+  showMapAction: boolean
 }) {
   const iconPath = getCategoryIconPath(business.category)
 
   return (
     <div
-      onClick={onClick}
-      className={`py-4 border-b border-stone-100 cursor-pointer transition-colors ${
+      className={`${styles.card} py-4 border-b border-stone-100 transition-colors ${
         isSelected ? 'bg-emerald-50 -mx-6 px-6' : 'hover:bg-stone-50 -mx-2 px-2 rounded-lg'
       }`}
     >
-      <Link href={`/businesses/${business.slug}`} onClick={e => e.stopPropagation()}>
+      <Link className={styles.detailLink} href={`/businesses/${encodeURIComponent(business.slug)}`} onClick={e => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           {/* Category icon — replaces the small dot, doubles as the visual category cue */}
           {iconPath ? (
@@ -630,9 +448,9 @@ function BusinessCard({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="text-sm font-medium text-stone-900 hover:text-emerald-700 transition-colors">
+              <h2 className="text-lg font-bold text-stone-900 hover:text-emerald-700 transition-colors">
                 {business.name}
-              </span>
+              </h2>
               {business.is_verified && (
                 <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
                   Owner-managed
@@ -657,7 +475,7 @@ function BusinessCard({
 
               return (
                 <p className="text-xs text-stone-500 mt-2 leading-relaxed">
-                  <span className="text-stone-400">Why it qualifies: </span>
+                  <span className="text-stone-400">Criteria: </span>
                   {credentials}
                 </p>
               )
@@ -667,6 +485,7 @@ function BusinessCard({
           <span className="text-stone-300 hover:text-emerald-500 transition-colors flex-shrink-0 self-center">→</span>
         </div>
       </Link>
+      {showMapAction && <button type="button" aria-pressed={isSelected} onClick={onClick} className={styles.showOnMap}>Show on map<span className="sr-only">: {business.name}</span></button>}
     </div>
   )
 }
