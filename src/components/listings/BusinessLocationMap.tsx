@@ -1,6 +1,7 @@
 'use client'
 
-import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps'
+import { Map, AdvancedMarker } from '@vis.gl/react-google-maps'
+import DirectoryMapProvider from './DirectoryMapProvider'
 import { Business } from '@/lib/types'
 import { getCategoryColor } from '@/lib/categories'
 
@@ -25,10 +26,10 @@ export default function BusinessLocationMap({ business }: Props) {
   const color = getCategoryColor(business.category)
 
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+    <DirectoryMapProvider fallback={null}>
       <div className="w-full h-72 rounded-xl overflow-hidden border border-stone-100">
         <Map
-          mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID}
+          mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim()}
           defaultCenter={{ lat, lng }}
           defaultZoom={15}
           gestureHandling="cooperative"
@@ -50,6 +51,6 @@ export default function BusinessLocationMap({ business }: Props) {
           </AdvancedMarker>
         </Map>
       </div>
-    </APIProvider>
+    </DirectoryMapProvider>
   )
 }
