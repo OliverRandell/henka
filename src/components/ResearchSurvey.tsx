@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ResearchArticle } from './ResearchSite'
+import styles from './ResearchSite.module.css'
 
 function getResponderUrl(value: string | undefined) {
   if (!value) return null
@@ -12,27 +13,26 @@ function getResponderUrl(value: string | undefined) {
   }
 }
 
-export default function ResearchSurvey({ title, introduction, responderUrl }: {
+export default function ResearchSurvey({ title, introduction, buttonLabel, responderUrl }: {
   title: string
   introduction: string
+  buttonLabel: string
   responderUrl?: string
 }) {
   const responder = getResponderUrl(responderUrl)
-  const embed = responder && new URL(responder)
-  embed?.searchParams.set('embedded', 'true')
 
   return (
     <ResearchArticle title={title}>
       <p>{introduction}</p>
-      <p>Taking part is voluntary. Google Forms processes responses. If you choose to provide an email for follow-up, it can identify your response. Read how we handle responses in the <Link href="/privacy">privacy notice</Link>.</p>
-      {responder && embed ? (
+      {responder ? (
         <>
-          <p><a href={responder.href}>Open the survey directly in Google Forms</a></p>
-          <iframe title={title} src={embed.href} loading="lazy" />
+          <a className={styles.button} href={responder.href}>{buttonLabel}</a>
+          <p>The survey opens in Google Forms.</p>
         </>
       ) : (
         <p>The survey is currently unavailable. <Link href="/contact">Contact Henka</Link> for research enquiries.</p>
       )}
+      <p>Taking part is voluntary. Google Forms processes responses. If you choose to provide an email for follow-up, it can identify your response. Read how we handle responses in the <Link href="/privacy">privacy notice</Link>.</p>
     </ResearchArticle>
   )
 }
