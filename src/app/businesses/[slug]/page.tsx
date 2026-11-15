@@ -73,6 +73,8 @@ export default async function BusinessPage({ params, searchParams }: Props) {
 
   if (!business || error) notFound()
 
+  const website = getPublicUrl(business.website_url)
+  const instagram = getPublicUrl(business.instagram_url)
   const isClaimed = !!business.claimed_by
   const iconPath = getCategoryIconPath(business.category)
   const gradient = getCategoryGradient(business.category)
@@ -189,13 +191,13 @@ export default async function BusinessPage({ params, searchParams }: Props) {
                   <>
                     Sustainability credentials are being added. Read about{' '}
                     <Link href="/about" className="text-emerald-700 hover:underline font-medium">
-                      Candella's standard
+                      Henka’s directory criteria
                     </Link>
                     .
                   </>
                 ) : (
                   <>
-                    Sustainability credentials haven't been added yet.{' '}
+                    Sustainability credentials haven’t been added yet.{' '}
                     <Link
                       href={`/claim?business=${business.slug}`}
                       className="text-emerald-700 hover:underline font-medium"
@@ -204,7 +206,7 @@ export default async function BusinessPage({ params, searchParams }: Props) {
                     </Link>{' '}
                     to add them, or read about{' '}
                     <Link href="/about" className="text-emerald-700 hover:underline font-medium">
-                      Candella's standard
+                      Henka’s directory criteria
                     </Link>
                     .
                   </>
@@ -235,27 +237,27 @@ export default async function BusinessPage({ params, searchParams }: Props) {
                 )}
               </InfoRow>
             )}
-            {business.website_url && (
+            {website && (
               <InfoRow label="Website">
                 <a
-                  href={business.website_url}
+                  href={website}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-emerald-700 hover:underline break-all"
                 >
-                  {business.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                  {website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                 </a>
               </InfoRow>
             )}
-            {business.instagram_url && (
+            {instagram && (
               <InfoRow label="Instagram">
                 <a
-                  href={business.instagram_url}
+                  href={instagram}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-emerald-700 hover:underline"
                 >
-                  {extractInstagramHandle(business.instagram_url)}
+                  {extractInstagramHandle(instagram)}
                 </a>
               </InfoRow>
             )}
@@ -387,6 +389,15 @@ function RelatedBusinessRow({ business }: { business: Business }) {
       <span className="text-stone-300 group-hover:text-emerald-500 transition-colors flex-shrink-0">\u2192</span>
     </Link>
   )
+}
+
+function getPublicUrl(value: string | null | undefined) {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    if (url.protocol === 'https:' || url.protocol === 'http:') return url.href
+  } catch {}
+  return null
 }
 
 function extractInstagramHandle(url: string): string {

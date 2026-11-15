@@ -9,7 +9,6 @@ export function ResearchSite({ children }: { children: ReactNode }) {
       <header className={styles.header}>
         <Link className={styles.wordmark} href="/" aria-label="Henka home">henka.</Link>
         <nav aria-label="Main navigation">
-          <Link href="/#research">Research</Link>
           <Link href="/businesses">Directory</Link>
           <Link href="/about">About</Link>
         </nav>
